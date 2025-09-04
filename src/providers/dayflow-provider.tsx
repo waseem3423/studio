@@ -57,8 +57,14 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     setIsClient(true);
     let currentUserId = localStorage.getItem(USER_ID_KEY);
     if (!currentUserId) {
-      currentUserId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-      localStorage.setItem(USER_ID_KEY, currentUserId);
+      currentUserId = prompt("Please enter a unique User ID to sync your data across devices. For example: waseem123");
+      if(currentUserId) {
+        localStorage.setItem(USER_ID_KEY, currentUserId);
+      } else {
+        // Handle case where user cancels prompt
+        alert("A User ID is required to use the application.");
+        return;
+      }
     }
     setUserId(currentUserId);
 
