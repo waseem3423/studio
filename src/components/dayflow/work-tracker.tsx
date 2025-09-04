@@ -5,12 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Clock, Play, StopCircle, Bot } from 'lucide-react';
 import { useDayflow } from '@/hooks/use-dayflow';
-import { format, parseISO, differenceInMinutes, getDay } from 'date-fns';
+import { format, parseISO, differenceInMinutes, getDay, formatISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { getDailySummary } from '@/app/actions';
 
 export default function WorkTracker() {
-  const { dataForDate, settings, startWork, endWork, selectedDate, setSummary } = useDayflow();
+  const { dataForDate, settings, startWork, endWork, selectedDate, setSummaryForDate } = useDayflow();
   const { work } = dataForDate;
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -50,36 +50,49 @@ export default function WorkTracker() {
   
   const handleEndWork = async () => {
     endWork();
-    const targetHours = 8;
-    const workedHours = totalHours; // Calculate before triggering toasts and summary
+    
+    // We need to pass the "future" dataForDate to the summary function
+    const updatedDayData = {
+        ...dataForDate,
+        work: { ...dataForDate.work, endTime: new Date().toISOString() }
+    };
+    
+    // Calculate hours based on the new end time
+    const end = new Date();
+    const start = parseISO(updatedDayData.work.startTime!);
+    const minutesWorked = differenceInMinutes(end, start); // simplified for toast
+    const hoursWorked = parseFloat((minutesWorked / 60).toFixed(2));
+    const targetHours = 8; // Example target
 
-    if (workedHours >= targetHours) {
+    if (hoursWorked >= targetHours) {
         toast({
             title: "Great Job!",
-            description: `You worked ${workedHours} hours today.`,
+            description: `You worked ${hoursWorked} hours today.`,
         });
     } else {
         toast({
             title: "Work Complete",
-            description: `You worked ${workedHours} hours. Target was ${targetHours} hours.`,
+            description: `You worked ${hoursWorked} hours. Target was ${targetHours} hours.`,
             variant: "destructive"
         });
     }
 
     // Automatically generate summary
     setIsGenerating(true);
-    setSummary('Generating your daily feedback...');
-    const result = await getDailySummary(dataForDate, settings);
+    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    setSummaryForDate(dateKey, 'Generating your daily feedback...');
+    
+    const result = await getDailySummary(updatedDayData, settings);
     setIsGenerating(false);
 
     if ('feedback' in result) {
-      setSummary(result.feedback);
+      setSummaryForDate(dateKey, result.feedback);
       toast({
         title: "AI Feedback Received",
         description: "Your personalized daily summary is ready."
       })
     } else {
-       setSummary('');
+       setSummaryForDate(dateKey, '');
        toast({
         title: "Error",
         description: result.error,

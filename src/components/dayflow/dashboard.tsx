@@ -8,6 +8,7 @@ import TaskManager from './task-manager';
 import ExpenseTracker from './expense-tracker';
 import PrayerTracker from './prayer-tracker';
 import DailySummary from './daily-summary';
+import GoalTracker from './goal-tracker';
 
 export default function Dashboard() {
   const { selectedDate, setSelectedDate, isClient } = useDayflow();
@@ -34,6 +35,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
         <DailySummary />
+        <GoalTracker />
       </div>
       <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
         <WorkTracker />

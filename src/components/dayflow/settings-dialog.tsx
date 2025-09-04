@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Cog, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,13 +16,20 @@ import { Label } from '@/components/ui/label';
 import { useDayflow } from '@/hooks/use-dayflow';
 import { Separator } from '../ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import type { Settings } from '@/lib/types';
 
 export default function SettingsDialog() {
   const { settings, updateSettings, exportAllData, importData } = useDayflow();
-  const [localSettings, setLocalSettings] = useState(settings);
+  const [localSettings, setLocalSettings] = useState<Settings>(settings);
   const [isOpen, setIsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (isOpen) {
+      setLocalSettings(settings);
+    }
+  }, [isOpen, settings]);
 
   const handleSave = () => {
     updateSettings(localSettings);
@@ -51,7 +58,6 @@ export default function SettingsDialog() {
       }
     };
     reader.readAsText(file);
-     // Reset file input to allow importing the same file again
     event.target.value = '';
   };
 
@@ -60,6 +66,20 @@ export default function SettingsDialog() {
     toast({ title: 'Export Started', description: 'Your data backup is downloading.' });
     setIsOpen(false);
   }
+
+  const handleGoalChange = (goalName: keyof Settings['goals'], value: string) => {
+    const numValue = parseInt(value, 10);
+    if (!isNaN(numValue)) {
+      setLocalSettings(prev => ({
+        ...prev,
+        goals: {
+          ...prev.goals,
+          [goalName]: numValue,
+        },
+      }));
+    }
+  };
+
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -72,7 +92,7 @@ export default function SettingsDialog() {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>Configure your daily schedule and manage data.</DialogDescription>
+          <DialogDescription>Configure your daily schedule, set goals, and manage data.</DialogDescription>
         </DialogHeader>
         
         <div className="py-2 space-y-4">
@@ -112,6 +132,44 @@ export default function SettingsDialog() {
                 type="time"
                 value={localSettings.breakEndTime}
                 onChange={(e) => setLocalSettings({ ...localSettings, breakEndTime: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="py-2 space-y-4">
+          <h4 className="text-sm font-medium text-muted-foreground">My Goals</h4>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="work-hours-goal">Weekly Work Hours Goal</Label>
+              <Input
+                id="work-hours-goal"
+                type="number"
+                value={localSettings.goals.weeklyWorkHours}
+                onChange={(e) => handleGoalChange('weeklyWorkHours', e.target.value)}
+                placeholder="e.g., 40"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-goal">Max Daily Expense (PKR)</Label>
+              <Input
+                id="expense-goal"
+                type="number"
+                value={localSettings.goals.maxDailyExpenses}
+                onChange={(e) => handleGoalChange('maxDailyExpenses', e.target.value)}
+                placeholder="e.g., 1000"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="prayer-streak-goal">Consecutive 5-Prayer Days Goal</Label>
+              <Input
+                id="prayer-streak-goal"
+                type="number"
+                value={localSettings.goals.prayerStreak}
+                onChange={(e) => handleGoalChange('prayerStreak', e.target.value)}
+                placeholder="e.g., 7"
               />
             </div>
           </div>

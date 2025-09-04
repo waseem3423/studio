@@ -3,17 +3,24 @@
 import type { ReactNode } from 'react';
 import { createContext, useState, useEffect, useCallback } from 'react';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isValid, parseISO } from 'date-fns';
-import type { AppData, DayData, Settings, Task, Expense, Prayer } from '@/lib/types';
+import type { AppData, DayData, Settings, Task, Expense, Prayer, GoalSettings } from '@/lib/types';
 import { db, auth } from '@/lib/firebase';
-import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
+
+const DEFAULT_GOALS: GoalSettings = {
+  weeklyWorkHours: 40,
+  maxDailyExpenses: 1000,
+  prayerStreak: 5,
+}
 
 const DEFAULT_SETTINGS: Settings = {
   workStartTime: '09:30',
   workEndTime: '17:30',
   breakStartTime: '13:20',
   breakEndTime: '14:20',
+  goals: DEFAULT_GOALS,
 };
 
 const EMPTY_DAY_DATA: DayData = {
@@ -21,6 +28,7 @@ const EMPTY_DAY_DATA: DayData = {
   tasks: [],
   expenses: [],
   prayers: [],
+  summary: '',
 };
 
 const SETTINGS_STORAGE_KEY = 'dayflow-settings';
@@ -35,6 +43,7 @@ export interface DayflowContextType {
   dataForDate: DayData;
   weekData: AppData;
   monthData: AppData;
+  allData: AppData;
   startWork: () => void;
   endWork: () => void;
   addTask: (task: Omit<Task, 'id'>) => void;
@@ -44,8 +53,7 @@ export interface DayflowContextType {
   logPrayer: (prayer: Omit<Prayer, 'id'>) => void;
   deletePrayer: (prayerId: string) => void;
   isClient: boolean;
-  summary: string;
-  setSummary: (summary: string) => void;
+  setSummaryForDate: (dateKey: string, summary: string) => void;
   exportAllData: () => void;
   importData: (jsonContent: string) => Promise<void>;
 }
@@ -59,7 +67,6 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appData, setAppData] = useState<AppData>({});
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [summary, setSummary] = useState('');
   const { toast } = useToast();
   
   // Effect to handle auth state and load data
@@ -103,11 +110,6 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     }
   }, [settings, isClient, user]);
   
-    // Reset summary when date changes
-  useEffect(() => {
-    setSummary('');
-  }, [selectedDate]);
-
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
 
   const updateFirestoreDoc = useCallback(async (updateData: { [key: string]: any }) => {
@@ -130,6 +132,12 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     setAppData(newAppData);
     updateFirestoreDoc({ [date]: dayData });
   };
+
+  const setSummaryForDate = (dateKey: string, summary: string) => {
+    const targetDayData = appData[dateKey] || { ...EMPTY_DAY_DATA };
+    const newDayData = { ...targetDayData, summary };
+    updateStateAndFirestore(dateKey, newDayData);
+  }
   
   const startWork = () => {
     const newWorkData = { ...dataForDate.work, startTime: new Date().toISOString() };
@@ -205,7 +213,11 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
   };
 
   const updateSettings = (newSettings: Partial<Settings>) => {
-    setSettings(prev => ({ ...prev, ...newSettings }));
+    setSettings(prev => ({ 
+      ...prev, 
+      ...newSettings,
+      goals: { ...prev.goals, ...newSettings.goals }
+    }));
   };
 
   const getAggregatedData = (start: Date, end: Date): AppData => {
@@ -270,6 +282,7 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     dataForDate,
     weekData,
     monthData,
+    allData: appData,
     startWork,
     endWork,
     addTask,
@@ -279,8 +292,7 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     logPrayer,
     deletePrayer,
     isClient,
-    summary,
-    setSummary,
+    setSummaryForDate,
     exportAllData,
     importData,
   };

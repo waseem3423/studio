@@ -33,6 +33,13 @@ export interface DayData {
   tasks: Task[];
   expenses: Expense[];
   prayers: Prayer[];
+  summary?: string;
+}
+
+export interface GoalSettings {
+  weeklyWorkHours: number;
+  maxDailyExpenses: number;
+  prayerStreak: number;
 }
 
 export interface Settings {
@@ -40,6 +47,7 @@ export interface Settings {
   workEndTime: string;
   breakStartTime: string;
   breakEndTime: string;
+  goals: GoalSettings;
 }
 
 export interface AppData {
