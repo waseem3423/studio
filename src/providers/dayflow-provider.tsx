@@ -4,6 +4,8 @@ import type { ReactNode } from 'react';
 import { createContext, useState, useEffect, useCallback } from 'react';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import type { AppData, DayData, Settings, Task, Expense, Prayer } from '@/lib/types';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 const DEFAULT_SETTINGS: Settings = {
   workStartTime: '09:30',
@@ -19,7 +21,7 @@ const EMPTY_DAY_DATA: DayData = {
   prayers: [],
 };
 
-const DATA_STORAGE_KEY = 'dayflow-data';
+const USER_ID_KEY = 'dayflow-user-id';
 const SETTINGS_STORAGE_KEY = 'dayflow-settings';
 
 export interface DayflowContextType {
@@ -45,30 +47,48 @@ export const DayflowContext = createContext<DayflowContextType | undefined>(unde
 
 export function DayflowProvider({ children }: { children: ReactNode }) {
   const [isClient, setIsClient] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appData, setAppData] = useState<AppData>({});
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-
+  
+  // Effect to set up user ID and load data from Firestore
   useEffect(() => {
     setIsClient(true);
-    try {
-      const storedData = localStorage.getItem(DATA_STORAGE_KEY);
-      if (storedData) setAppData(JSON.parse(storedData));
+    let currentUserId = localStorage.getItem(USER_ID_KEY);
+    if (!currentUserId) {
+      currentUserId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+      localStorage.setItem(USER_ID_KEY, currentUserId);
+    }
+    setUserId(currentUserId);
 
-      const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      if (storedSettings) setSettings(JSON.parse(storedSettings));
-      else setSettings(DEFAULT_SETTINGS);
-    } catch (error) {
-      console.error("Failed to parse from localStorage", error);
+    const loadData = async (uid: string) => {
+      try {
+        // Load settings from localStorage
+        const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+        if (storedSettings) setSettings(JSON.parse(storedSettings));
+        else setSettings(DEFAULT_SETTINGS);
+        
+        // Load app data from Firestore
+        const docRef = doc(db, "dayflow_data", uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setAppData(docSnap.data().appData || {});
+        } else {
+          // If no document exists, create one
+          await setDoc(docRef, { appData: {}, userId: uid });
+        }
+      } catch (error) {
+        console.error("Failed to load data:", error);
+      }
+    };
+    
+    if (currentUserId) {
+        loadData(currentUserId);
     }
   }, []);
-  
-  useEffect(() => {
-    if (isClient) {
-      localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(appData));
-    }
-  }, [appData, isClient]);
 
+  // Effect to save settings to localStorage
   useEffect(() => {
     if (isClient) {
       localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
@@ -77,50 +97,62 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
 
+  const updateFirestoreData = useCallback(async (newAppData: AppData) => {
+    if (!userId) return;
+    try {
+        const docRef = doc(db, "dayflow_data", userId);
+        await setDoc(docRef, { appData: newAppData, userId }, { merge: true });
+    } catch (error) {
+        console.error("Error updating Firestore:", error);
+    }
+  }, [userId]);
+
   const updateDateData = useCallback((date: string, newData: Partial<DayData>) => {
-    setAppData(prev => ({
-      ...prev,
+    const newAppData = {
+      ...appData,
       [date]: {
         ...EMPTY_DAY_DATA,
-        ...prev[date],
+        ...appData[date],
         ...newData,
       },
-    }));
-  }, []);
+    };
+    setAppData(newAppData);
+    updateFirestoreData(newAppData);
+  }, [appData, updateFirestoreData]);
 
-  const startWork = () => updateDateData(dateKey, { work: { ...appData[dateKey]?.work, startTime: new Date().toISOString() } });
-  const endWork = () => updateDateData(dateKey, { work: { ...appData[dateKey]?.work, endTime: new Date().toISOString() } });
+  const startWork = () => updateDateData(dateKey, { work: { ...dataForDate.work, startTime: new Date().toISOString() } });
+  const endWork = () => updateDateData(dateKey, { work: { ...dataForDate.work, endTime: new Date().toISOString() } });
 
   const addTask = (task: Omit<Task, 'id'>) => {
     const newTask: Task = { ...task, id: Date.now().toString() };
-    const currentTasks = appData[dateKey]?.tasks || [];
+    const currentTasks = dataForDate.tasks || [];
     updateDateData(dateKey, { tasks: [...currentTasks, newTask] });
   };
   
   const deleteTask = (taskId: string) => {
-    const currentTasks = appData[dateKey]?.tasks || [];
+    const currentTasks = dataForDate.tasks || [];
     updateDateData(dateKey, { tasks: currentTasks.filter(t => t.id !== taskId) });
   };
 
   const addExpense = (expense: Omit<Expense, 'id'>) => {
     const newExpense: Expense = { ...expense, id: Date.now().toString() };
-    const currentExpenses = appData[dateKey]?.expenses || [];
+    const currentExpenses = dataForDate.expenses || [];
     updateDateData(dateKey, { expenses: [...currentExpenses, newExpense] });
   };
 
   const deleteExpense = (expenseId: string) => {
-    const currentExpenses = appData[dateKey]?.expenses || [];
+    const currentExpenses = dataForDate.expenses || [];
     updateDateData(dateKey, { expenses: currentExpenses.filter(e => e.id !== expenseId) });
   };
   
   const logPrayer = (prayer: Omit<Prayer, 'id'>) => {
     const newPrayer: Prayer = { ...prayer, id: Date.now().toString() };
-    const currentPrayers = appData[dateKey]?.prayers.filter(p => p.name !== prayer.name) || [];
+    const currentPrayers = dataForDate.prayers.filter(p => p.name !== prayer.name) || [];
     updateDateData(dateKey, { prayers: [...currentPrayers, newPrayer] });
   };
   
   const deletePrayer = (prayerId: string) => {
-    const currentPrayers = appData[dateKey]?.prayers || [];
+    const currentPrayers = dataForDate.prayers || [];
     updateDateData(dateKey, { prayers: currentPrayers.filter(p => p.id !== prayerId) });
   };
 
@@ -143,12 +175,14 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
   const weekData = getAggregatedData(startOfWeek(selectedDate, { weekStartsOn: 1 }), endOfWeek(selectedDate, { weekStartsOn: 1 }));
   const monthData = getAggregatedData(startOfMonth(selectedDate), endOfMonth(selectedDate));
   
+  const dataForDate = appData[dateKey] || EMPTY_DAY_DATA;
+  
   const value: DayflowContextType = {
     selectedDate,
     setSelectedDate,
     settings,
     updateSettings,
-    dataForDate: appData[dateKey] || EMPTY_DAY_DATA,
+    dataForDate,
     weekData,
     monthData,
     startWork,
