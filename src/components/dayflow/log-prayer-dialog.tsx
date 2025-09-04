@@ -17,7 +17,6 @@ import { Label } from '@/components/ui/label';
 import { useDayflow } from '@/hooks/use-dayflow';
 import { Textarea } from '../ui/textarea';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { useToast } from '@/hooks/use-toast';
 
 interface LogPrayerDialogProps {
   prayerName: PrayerType;
@@ -27,7 +26,6 @@ interface LogPrayerDialogProps {
 
 export default function LogPrayerDialog({ prayerName, loggedPrayer, isDisabled = false }: LogPrayerDialogProps) {
   const { logPrayer } = useDayflow();
-  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [prayerData, setPrayerData] = useState({
     time: '',
@@ -53,12 +51,6 @@ export default function LogPrayerDialog({ prayerName, loggedPrayer, isDisabled =
     if (prayerData.time) {
       logPrayer({ name: prayerName, ...prayerData });
       setIsOpen(false);
-      if (prayerData.method === 'Jamaat') {
-        toast({
-            title: "Masha'Allah!",
-            description: `Well done for praying ${prayerName} in Jamaat.`
-        })
-      }
     }
   };
 

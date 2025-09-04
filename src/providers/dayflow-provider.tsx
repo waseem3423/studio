@@ -7,6 +7,7 @@ import type { AppData, DayData, Settings, Task, Expense, Prayer } from '@/lib/ty
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged, type User } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 
 const DEFAULT_SETTINGS: Settings = {
   workStartTime: '09:30',
@@ -34,8 +35,6 @@ export interface DayflowContextType {
   dataForDate: DayData;
   weekData: AppData;
   monthData: AppData;
-  summary: string;
-  setSummary: (summary: string) => void;
   startWork: () => void;
   endWork: () => void;
   addTask: (task: Omit<Task, 'id'>) => void;
@@ -45,6 +44,8 @@ export interface DayflowContextType {
   logPrayer: (prayer: Omit<Prayer, 'id'>) => void;
   deletePrayer: (prayerId: string) => void;
   isClient: boolean;
+  summary: string;
+  setSummary: (summary: string) => void;
 }
 
 export const DayflowContext = createContext<DayflowContextType | undefined>(undefined);
@@ -57,6 +58,7 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
   const [appData, setAppData] = useState<AppData>({});
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [summary, setSummary] = useState('');
+  const { toast } = useToast();
   
   // Effect to handle auth state and load data
   useEffect(() => {
@@ -98,8 +100,8 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(`${SETTINGS_STORAGE_KEY}-${user.uid}`, JSON.stringify(settings));
     }
   }, [settings, isClient, user]);
-
-  // Reset summary when date changes
+  
+    // Reset summary when date changes
   useEffect(() => {
     setSummary('');
   }, [selectedDate]);
@@ -131,6 +133,10 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     const newWorkData = { ...dataForDate.work, startTime: new Date().toISOString() };
     const newDayData = { ...dataForDate, work: newWorkData };
     updateStateAndFirestore(dateKey, newDayData);
+     toast({
+      title: 'Work Started',
+      description: 'Your work session has been logged.',
+    });
   };
   
   const endWork = () => {
@@ -144,6 +150,10 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     const newTasks = [...dataForDate.tasks, newTask];
     const newDayData = { ...dataForDate, tasks: newTasks };
     updateStateAndFirestore(dateKey, newDayData);
+    toast({
+      title: 'Task Added',
+      description: `"${newTask.name}" has been added to your list.`,
+    });
   };
   
   const deleteTask = (taskId: string) => {
@@ -157,6 +167,10 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     const newExpenses = [...dataForDate.expenses, newExpense];
     const newDayData = { ...dataForDate, expenses: newExpenses };
     updateStateAndFirestore(dateKey, newDayData);
+    toast({
+      title: 'Expense Logged',
+      description: `${newExpense.description} for PKR ${newExpense.amount.toFixed(2)} has been recorded.`,
+    });
   };
 
   const deleteExpense = (expenseId: string) => {
@@ -168,9 +182,18 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
   const logPrayer = (prayer: Omit<Prayer, 'id'>) => {
     const newPrayer: Prayer = { ...prayer, id: prayer.name }; // Use name as ID to prevent duplicates
     const otherPrayers = dataForDate.prayers.filter(p => p.name !== prayer.name);
-    const newPrayers = [...otherPrayers, newPrayer];
+    const newPrayers = [...otherPrayers, newPrayer].sort((a, b) => a.name.localeCompare(b.name));
     const newDayData = { ...dataForDate, prayers: newPrayers };
     updateStateAndFirestore(dateKey, newDayData);
+    
+    let message = `${prayer.name} prayer logged as "${prayer.method}".`;
+    if (prayer.method === 'Jamaat') {
+      message = `Masha'Allah! Well done for praying ${prayer.name} in Jamaat.`
+    }
+    toast({
+      title: 'Prayer Logged',
+      description: message,
+    });
   };
   
   const deletePrayer = (prayerId: string) => {
@@ -210,8 +233,6 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     dataForDate,
     weekData,
     monthData,
-    summary,
-    setSummary,
     startWork,
     endWork,
     addTask,
@@ -221,6 +242,8 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     logPrayer,
     deletePrayer,
     isClient,
+    summary,
+    setSummary,
   };
 
   return <DayflowContext.Provider value={value}>{children}</DayflowContext.Provider>;
