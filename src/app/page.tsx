@@ -1,7 +1,31 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useDayflow } from '@/hooks/use-dayflow';
 import Dashboard from "@/components/dayflow/dashboard";
 import Header from "@/components/dayflow/header";
+import { useRouter } from 'next/navigation';
+import { Loader } from 'lucide-react';
 
 export default function Home() {
+  const { user, loading } = useDayflow();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex flex-col min-h-screen items-center justify-center">
+        <Loader className="w-8 h-8 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Loading your Dayflow...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />

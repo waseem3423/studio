@@ -4,8 +4,9 @@ import type { ReactNode } from 'react';
 import { createContext, useState, useEffect, useCallback } from 'react';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import type { AppData, DayData, Settings, Task, Expense, Prayer } from '@/lib/types';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, updateDoc, deleteField } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 
 const DEFAULT_SETTINGS: Settings = {
   workStartTime: '09:30',
@@ -21,10 +22,11 @@ const EMPTY_DAY_DATA: DayData = {
   prayers: [],
 };
 
-const USER_ID_KEY = 'dayflow-user-id';
 const SETTINGS_STORAGE_KEY = 'dayflow-settings';
 
 export interface DayflowContextType {
+  user: User | null;
+  loading: boolean;
   selectedDate: Date;
   setSelectedDate: (date: Date) => void;
   settings: Settings;
@@ -47,83 +49,73 @@ export const DayflowContext = createContext<DayflowContextType | undefined>(unde
 
 export function DayflowProvider({ children }: { children: ReactNode }) {
   const [isClient, setIsClient] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appData, setAppData] = useState<AppData>({});
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   
-  // Effect to set up user ID and load data from Firestore
+  // Effect to handle auth state and load data
   useEffect(() => {
     setIsClient(true);
-    let currentUserId = localStorage.getItem(USER_ID_KEY);
-    if (!currentUserId) {
-      currentUserId = prompt("Please enter a unique User ID to sync your data across devices. For example: waseem123");
-      if(currentUserId) {
-        localStorage.setItem(USER_ID_KEY, currentUserId);
-      } else {
-        // Handle case where user cancels prompt
-        alert("A User ID is required to use the application.");
-        return;
-      }
-    }
-    setUserId(currentUserId);
-
-    const loadData = async (uid: string) => {
-      try {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
         // Load settings from localStorage
-        const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
-        if (storedSettings) setSettings(JSON.parse(storedSettings));
-        else setSettings(DEFAULT_SETTINGS);
-        
+        const storedSettings = localStorage.getItem(`${SETTINGS_STORAGE_KEY}-${currentUser.uid}`);
+        setSettings(storedSettings ? JSON.parse(storedSettings) : DEFAULT_SETTINGS);
+
         // Load app data from Firestore
-        const docRef = doc(db, "dayflow_data", uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setAppData(docSnap.data() || {});
-        } else {
-          // If no document exists, create one
-          await setDoc(docRef, { userId: uid });
+        try {
+          const docRef = doc(db, "dayflow_data", currentUser.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setAppData(docSnap.data() || {});
+          } else {
+            setAppData({}); // Reset data for new user
+            await setDoc(docRef, { userId: currentUser.uid });
+          }
+        } catch (error) {
+          console.error("Failed to load data:", error);
         }
-      } catch (error) {
-        console.error("Failed to load data:", error);
+      } else {
+        // Reset state when user logs out
+        setAppData({});
+        setSettings(DEFAULT_SETTINGS);
       }
-    };
-    
-    if (currentUserId) {
-        loadData(currentUserId);
-    }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Effect to save settings to localStorage
   useEffect(() => {
-    if (isClient) {
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    if (isClient && user) {
+      localStorage.setItem(`${SETTINGS_STORAGE_KEY}-${user.uid}`, JSON.stringify(settings));
     }
-  }, [settings, isClient]);
+  }, [settings, isClient, user]);
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
 
   const updateFirestoreDoc = useCallback(async (updateData: { [key: string]: any }) => {
-    if (!userId) return;
+    if (!user) return;
     try {
-      const docRef = doc(db, "dayflow_data", userId);
+      const docRef = doc(db, "dayflow_data", user.uid);
       await updateDoc(docRef, updateData);
     } catch (error) {
-      // If document doesn't exist, create it.
       if ((error as any).code === 'not-found') {
-        const docRef = doc(db, "dayflow_data", userId);
-        await setDoc(docRef, { userId, ...updateData });
+        const docRef = doc(db, "dayflow_data", user.uid);
+        await setDoc(docRef, { userId: user.uid, ...updateData });
       } else {
         console.error("Error updating Firestore:", error);
       }
     }
-  }, [userId]);
+  }, [user]);
 
   const updateStateAndFirestore = (date: string, dayData: DayData) => {
-    // Update local state
     const newAppData = { ...appData, [date]: dayData };
     setAppData(newAppData);
-    // Update Firestore
     updateFirestoreDoc({ [date]: dayData });
   };
   
@@ -174,7 +166,6 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
   };
   
   const deletePrayer = (prayerId: string) => {
-     // In logPrayer, we use name as ID, so here we filter by name
     const newPrayers = dataForDate.prayers.filter(p => p.name !== prayerId);
     const newDayData = { ...dataForDate, prayers: newPrayers };
     updateStateAndFirestore(dateKey, newDayData);
@@ -202,6 +193,8 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
   const dataForDate = appData[dateKey] || EMPTY_DAY_DATA;
   
   const value: DayflowContextType = {
+    user,
+    loading,
     selectedDate,
     setSelectedDate,
     settings,
