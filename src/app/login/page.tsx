@@ -6,7 +6,7 @@ import {
   signInWithEmailAndPassword,
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -62,11 +62,34 @@ export default function LoginPage() {
       });
       router.push('/');
     } catch (error: any) {
-      toast({
-        title: 'Sign Up Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+       // This is the crucial part: if the user already exists in auth, 
+       // still try to create their document in the 'users' collection if it's missing.
+      if (error.code === 'auth/email-already-in-use' && auth.currentUser) {
+        const user = auth.currentUser;
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (!userDoc.exists()) {
+           await setDoc(userDocRef, {
+              uid: user.uid,
+              name: name,
+              email: user.email,
+              createdAt: new Date(),
+           });
+           toast({ title: 'User data synced!', description: 'Your user profile is now visible to the admin.' });
+        } else {
+             toast({
+                title: 'Sign Up Error',
+                description: error.message,
+                variant: 'destructive',
+             });
+        }
+      } else {
+        toast({
+            title: 'Sign Up Error',
+            description: error.message,
+            variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
