@@ -22,9 +22,10 @@ import { useToast } from '@/hooks/use-toast';
 interface LogPrayerDialogProps {
   prayerName: PrayerType;
   loggedPrayer: Prayer | undefined;
+  isDisabled?: boolean;
 }
 
-export default function LogPrayerDialog({ prayerName, loggedPrayer }: LogPrayerDialogProps) {
+export default function LogPrayerDialog({ prayerName, loggedPrayer, isDisabled = false }: LogPrayerDialogProps) {
   const { logPrayer } = useDayflow();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -64,7 +65,7 @@ export default function LogPrayerDialog({ prayerName, loggedPrayer }: LogPrayerD
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant={loggedPrayer ? 'secondary' : 'outline'} size="sm">
+        <Button variant={loggedPrayer ? 'secondary' : 'outline'} size="sm" disabled={isDisabled}>
           {loggedPrayer ? 'Edit' : 'Log'}
         </Button>
       </DialogTrigger>
