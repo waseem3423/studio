@@ -1,7 +1,8 @@
 'use server';
 
 import { summarizeDailyData, type SummarizeDailyDataInput } from "@/ai/flows/summarize-daily-data-with-deeeseek-api";
-import type { DayData, Settings } from "@/lib/types";
+import { summarizePeriodData, type SummarizePeriodDataInput } from "@/ai/flows/summarize-period-data";
+import type { DayData, Settings, AppData } from "@/lib/types";
 import { differenceInMinutes, parseISO } from "date-fns";
 
 function calculateWorkHours(workData: DayData['work'], settings: Settings): number {
@@ -48,5 +49,26 @@ export async function getDailySummary(dayData: DayData, settings: Settings): Pro
   } catch (error) {
     console.error('Error getting daily summary:', error);
     return { error: 'Failed to generate summary. Please try again.' };
+  }
+}
+
+
+export async function getPeriodSummary(periodData: AppData, period: 'week' | 'month'): Promise<{ summary: string } | { error: string }> {
+  try {
+    if (Object.keys(periodData).length === 0) {
+      return { summary: "Is arsay ke liye koi data mojood nahi hai." };
+    }
+
+    const input: SummarizePeriodDataInput = {
+      period,
+      periodData: JSON.stringify(periodData, null, 2),
+    };
+    
+    const result = await summarizePeriodData(input);
+
+    return { summary: result.summary };
+  } catch (error) {
+    console.error(`Error getting ${period} summary:`, error);
+    return { error: `Failed to generate ${period} summary. Please try again.` };
   }
 }

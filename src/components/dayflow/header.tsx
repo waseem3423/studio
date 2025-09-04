@@ -1,6 +1,6 @@
 'use client';
 
-import { Flame, LogOut } from "lucide-react";
+import { Flame, LogOut, BarChartBig } from "lucide-react";
 import SettingsDialog from "./settings-dialog";
 import { useDayflow } from "@/hooks/use-dayflow";
 import { auth } from "@/lib/firebase";
@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "./theme-toggle";
+import PeriodSummaryDialog from "./period-summary-dialog";
 
 export default function Header() {
   const { user } = useDayflow();
@@ -32,6 +33,7 @@ export default function Header() {
       </div>
       <div className="flex items-center gap-2">
         {user && <p className="text-sm text-muted-foreground hidden sm:block">{user.email}</p>}
+        <PeriodSummaryDialog />
         <ThemeToggle />
         <SettingsDialog />
         <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Logout">
