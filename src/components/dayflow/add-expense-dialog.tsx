@@ -46,7 +46,7 @@ export default function AddExpenseDialog() {
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="amount">Amount ($)</Label>
+            <Label htmlFor="amount">Amount (PKR)</Label>
             <Input
               id="amount"
               type="number"

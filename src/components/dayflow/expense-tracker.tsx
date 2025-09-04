@@ -51,15 +51,15 @@ export default function ExpenseTracker() {
       <CardContent className="flex-grow space-y-4">
         <div className="grid grid-cols-3 gap-2 text-center">
             <div>
-                <p className="font-bold text-lg">${totals.daily.toFixed(2)}</p>
+                <p className="font-bold text-lg">PKR {totals.daily.toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground">Today</p>
             </div>
             <div>
-                <p className="font-bold text-lg">${totals.weekly.toFixed(2)}</p>
+                <p className="font-bold text-lg">PKR {totals.weekly.toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground">This Week</p>
             </div>
             <div>
-                <p className="font-bold text-lg">${totals.monthly.toFixed(2)}</p>
+                <p className="font-bold text-lg">PKR {totals.monthly.toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground">This Month</p>
             </div>
         </div>
@@ -73,7 +73,7 @@ export default function ExpenseTracker() {
                 <li key={expense.id} className="flex items-center justify-between p-2 rounded-md border group">
                   <p>{expense.description}</p>
                   <div className='flex items-center gap-2'>
-                    <p className="font-semibold">${expense.amount.toFixed(2)}</p>
+                    <p className="font-semibold">PKR {expense.amount.toFixed(2)}</p>
                     <button onClick={() => deleteExpense(expense.id)} className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
                       <Trash2 className="w-4 h-4" />
                     </button>

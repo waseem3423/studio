@@ -57,7 +57,7 @@ export default function ExpenseChart({ data }: ExpenseChartProps) {
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value) => `$${value}`}
+          tickFormatter={(value) => `PKR ${value}`}
         />
         <Tooltip cursor={false} content={<ChartTooltipContent />} />
         <Bar dataKey="total" fill="var(--color-total)" radius={4} />
