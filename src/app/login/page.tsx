@@ -5,7 +5,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,15 +27,35 @@ import Link from 'next/link';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const adminEmail = "waseemgaming40@gmail.com";
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name) {
+      toast({
+        title: 'Name is required',
+        description: 'Please enter your name.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Save user info to Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        name: name,
+        email: user.email,
+        createdAt: new Date(),
+      });
+
       toast({
         title: 'Account Created',
         description: "You've been successfully signed up and logged in.",
@@ -60,7 +81,12 @@ export default function LoginPage() {
         title: 'Logged In',
         description: 'Welcome back!',
       });
-      router.push('/');
+
+      if (email === adminEmail) {
+        router.push('/admin');
+      } else {
+        router.push('/');
+      }
     } catch (error: any) {
       toast({
         title: 'Login Error',
@@ -71,46 +97,7 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
-  const renderForms = (isLogin: boolean) => (
-    <form onSubmit={isLogin ? handleLogin : handleSignUp}>
-      <CardHeader>
-        <CardTitle>{isLogin ? 'Login' : 'Sign Up'}</CardTitle>
-        <CardDescription>
-          {isLogin ? 'Enter your credentials to access your dashboard.' : 'Create an account to start tracking your day.'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor={`${isLogin ? 'login' : 'signup'}-email`}>Email</Label>
-          <Input
-            id={`${isLogin ? 'login' : 'signup'}-email`}
-            type="email"
-            placeholder="m@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={`${isLogin ? 'login' : 'signup'}-password`}>Password</Label>
-          <Input 
-            id={`${isLogin ? 'login' : 'signup'}-password`}
-            type="password" 
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            />
-        </div>
-      </CardContent>
-      <CardFooter className="flex flex-col gap-4">
-        <Button className="w-full" disabled={loading}>
-          {loading ? (isLogin ? 'Logging in...' : 'Creating Account...') : (isLogin ? 'Login' : 'Sign Up')}
-        </Button>
-      </CardFooter>
-    </form>
-  );
-
+  
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-muted/40 p-4">
        <div className="absolute top-8 flex items-center gap-2">
@@ -124,12 +111,56 @@ export default function LoginPage() {
         </TabsList>
         <TabsContent value="login">
           <Card>
-            {renderForms(true)}
+            <form onSubmit={handleLogin}>
+              <CardHeader>
+                <CardTitle>Login</CardTitle>
+                <CardDescription>Enter your credentials to access your dashboard.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="login-email">Email</Label>
+                  <Input id="login-email" type="email" placeholder="m@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="login-password">Password</Label>
+                  <Input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                </div>
+              </CardContent>
+              <CardFooter className="flex flex-col gap-4">
+                <Button className="w-full" disabled={loading}>
+                  {loading ? 'Logging in...' : 'Login'}
+                </Button>
+              </CardFooter>
+            </form>
           </Card>
         </TabsContent>
         <TabsContent value="signup">
           <Card>
-            {renderForms(false)}
+            <form onSubmit={handleSignUp}>
+              <CardHeader>
+                <CardTitle>Sign Up</CardTitle>
+                <CardDescription>Create an account to start tracking your day.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                 <div className="space-y-2">
+                  <Label htmlFor="signup-name">Name</Label>
+                  <Input id="signup-name" type="text" placeholder="Your Name" value={name} onChange={(e) => setName(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <Input id="signup-email" type="email" placeholder="m@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <Input id="signup-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                </div>
+              </CardContent>
+              <CardFooter className="flex flex-col gap-4">
+                <Button className="w-full" disabled={loading}>
+                  {loading ? 'Creating Account...' : 'Sign Up'}
+                </Button>
+              </CardFooter>
+            </form>
           </Card>
         </TabsContent>
       </Tabs>
