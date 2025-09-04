@@ -3,12 +3,12 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  "apiKey": "api-key",
-  "authDomain": "dev-project-name.firebaseapp.com",
-  "projectId": "dev-project-name",
-  "storageBucket": "dev-project-name.appspot.com",
-  "messagingSenderId": "123456789",
-  "appId": "1:123456789:web:abcdef123456"
+  apiKey: "AIzaSyA47JFEpNszBDHOIULsmp5wmBqQFpwxjqY",
+  authDomain: "dayflow-assistant.firebaseapp.com",
+  projectId: "dayflow-assistant",
+  storageBucket: "dayflow-assistant.appspot.com",
+  messagingSenderId: "354070895206",
+  appId: "1:354070895206:web:487ff27341ee55efcdaba7"
 };
 
 // Initialize Firebase
