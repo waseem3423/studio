@@ -5,7 +5,7 @@ import { createContext, useState, useEffect, useCallback } from 'react';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import type { AppData, DayData, Settings, Task, Expense, Prayer } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteField } from 'firebase/firestore';
 
 const DEFAULT_SETTINGS: Settings = {
   workStartTime: '09:30',
@@ -73,10 +73,10 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
         const docRef = doc(db, "dayflow_data", uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setAppData(docSnap.data().appData || {});
+          setAppData(docSnap.data() || {});
         } else {
           // If no document exists, create one
-          await setDoc(docRef, { appData: {}, userId: uid });
+          await setDoc(docRef, { userId: uid });
         }
       } catch (error) {
         console.error("Failed to load data:", error);
@@ -97,63 +97,81 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
 
-  const updateFirestoreData = useCallback(async (newAppData: AppData) => {
+  const updateFirestoreDoc = useCallback(async (updateData: { [key: string]: any }) => {
     if (!userId) return;
     try {
-        const docRef = doc(db, "dayflow_data", userId);
-        await setDoc(docRef, { appData: newAppData, userId }, { merge: true });
+      const docRef = doc(db, "dayflow_data", userId);
+      await updateDoc(docRef, updateData);
     } catch (error) {
+      // If document doesn't exist, create it.
+      if ((error as any).code === 'not-found') {
+        const docRef = doc(db, "dayflow_data", userId);
+        await setDoc(docRef, { userId, ...updateData });
+      } else {
         console.error("Error updating Firestore:", error);
+      }
     }
   }, [userId]);
 
-  const updateDateData = useCallback((date: string, newData: Partial<DayData>) => {
-    const newAppData = {
-      ...appData,
-      [date]: {
-        ...EMPTY_DAY_DATA,
-        ...appData[date],
-        ...newData,
-      },
-    };
+  const updateStateAndFirestore = (date: string, dayData: DayData) => {
+    // Update local state
+    const newAppData = { ...appData, [date]: dayData };
     setAppData(newAppData);
-    updateFirestoreData(newAppData);
-  }, [appData, updateFirestoreData]);
-
-  const startWork = () => updateDateData(dateKey, { work: { ...dataForDate.work, startTime: new Date().toISOString() } });
-  const endWork = () => updateDateData(dateKey, { work: { ...dataForDate.work, endTime: new Date().toISOString() } });
+    // Update Firestore
+    updateFirestoreDoc({ [date]: dayData });
+  };
+  
+  const startWork = () => {
+    const newWorkData = { ...dataForDate.work, startTime: new Date().toISOString() };
+    const newDayData = { ...dataForDate, work: newWorkData };
+    updateStateAndFirestore(dateKey, newDayData);
+  };
+  
+  const endWork = () => {
+    const newWorkData = { ...dataForDate.work, endTime: new Date().toISOString() };
+    const newDayData = { ...dataForDate, work: newWorkData };
+    updateStateAndFirestore(dateKey, newDayData);
+  };
 
   const addTask = (task: Omit<Task, 'id'>) => {
     const newTask: Task = { ...task, id: Date.now().toString() };
-    const currentTasks = dataForDate.tasks || [];
-    updateDateData(dateKey, { tasks: [...currentTasks, newTask] });
+    const newTasks = [...dataForDate.tasks, newTask];
+    const newDayData = { ...dataForDate, tasks: newTasks };
+    updateStateAndFirestore(dateKey, newDayData);
   };
   
   const deleteTask = (taskId: string) => {
-    const currentTasks = dataForDate.tasks || [];
-    updateDateData(dateKey, { tasks: currentTasks.filter(t => t.id !== taskId) });
+    const newTasks = dataForDate.tasks.filter(t => t.id !== taskId);
+    const newDayData = { ...dataForDate, tasks: newTasks };
+    updateStateAndFirestore(dateKey, newDayData);
   };
 
   const addExpense = (expense: Omit<Expense, 'id'>) => {
     const newExpense: Expense = { ...expense, id: Date.now().toString() };
-    const currentExpenses = dataForDate.expenses || [];
-    updateDateData(dateKey, { expenses: [...currentExpenses, newExpense] });
+    const newExpenses = [...dataForDate.expenses, newExpense];
+    const newDayData = { ...dataForDate, expenses: newExpenses };
+    updateStateAndFirestore(dateKey, newDayData);
   };
 
   const deleteExpense = (expenseId: string) => {
-    const currentExpenses = dataForDate.expenses || [];
-    updateDateData(dateKey, { expenses: currentExpenses.filter(e => e.id !== expenseId) });
+    const newExpenses = dataForDate.expenses.filter(e => e.id !== expenseId);
+    const newDayData = { ...dataForDate, expenses: newExpenses };
+    updateStateAndFirestore(dateKey, newDayData);
   };
   
   const logPrayer = (prayer: Omit<Prayer, 'id'>) => {
-    const newPrayer: Prayer = { ...prayer, id: Date.now().toString() };
-    const currentPrayers = dataForDate.prayers.filter(p => p.name !== prayer.name) || [];
-    updateDateData(dateKey, { prayers: [...currentPrayers, newPrayer] });
+    const newPrayer: Prayer = { ...prayer, id: prayer.name }; // Use name as ID to prevent duplicates
+    const otherPrayers = dataForDate.prayers.filter(p => p.name !== prayer.name);
+    const newPrayers = [...otherPrayers, newPrayer];
+    const newDayData = { ...dataForDate, prayers: newPrayers };
+    updateStateAndFirestore(dateKey, newDayData);
   };
   
   const deletePrayer = (prayerId: string) => {
-    const currentPrayers = dataForDate.prayers || [];
-    updateDateData(dateKey, { prayers: currentPrayers.filter(p => p.id !== prayerId) });
+     // In logPrayer, we use name as ID, so here we filter by name
+    const newPrayers = dataForDate.prayers.filter(p => p.name !== prayerId);
+    const newDayData = { ...dataForDate, prayers: newPrayers };
+    updateStateAndFirestore(dateKey, newDayData);
   };
 
   const updateSettings = (newSettings: Partial<Settings>) => {
