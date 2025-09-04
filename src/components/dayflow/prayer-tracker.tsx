@@ -1,41 +1,19 @@
 'use client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Hand, Download, CheckCircle2, XCircle } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Hand, CheckCircle2, XCircle } from 'lucide-react';
 import { useDayflow } from '@/hooks/use-dayflow';
 import type { PrayerType } from '@/lib/types';
 import LogPrayerDialog from './log-prayer-dialog';
 import { Button } from '../ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
-import { exportToCsv } from '@/lib/csv';
 import { getPrayerStatus } from '@/lib/utils';
 import * as React from 'react';
 
 const PRAYERS: PrayerType[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
 export default function PrayerTracker() {
-  const { dataForDate, monthData, selectedDate } = useDayflow();
+  const { dataForDate, selectedDate } = useDayflow();
   const { prayers } = dataForDate;
-  const { toast } = useToast();
-
-  const handleExport = () => {
-    const allPrayers = Object.entries(monthData).flatMap(([date, dayData]) => 
-      dayData.prayers.map(prayer => ({
-        date,
-        prayer: prayer.name,
-        time: prayer.time,
-        method: prayer.method,
-        notes: prayer.notes,
-      }))
-    );
-     if(allPrayers.length > 0) {
-      exportToCsv(`prayers-${format(selectedDate, 'yyyy-MM')}.csv`, allPrayers);
-      toast({ title: 'Success', description: 'Prayer data exported.' });
-    } else {
-      toast({ title: 'No Data', description: 'There is no prayer data for this month to export.', variant: 'destructive' });
-    }
-  }
-
+ 
   return (
     <Card>
       <CardHeader>
@@ -75,11 +53,6 @@ export default function PrayerTracker() {
           );
         })}
       </CardContent>
-       <CardFooter className="flex justify-center">
-        <Button variant="outline" onClick={handleExport} className="w-full">
-          <Download className="mr-2 h-4 w-4"/> Export Month's Prayers
-        </Button>
-      </CardFooter>
     </Card>
   );
 }

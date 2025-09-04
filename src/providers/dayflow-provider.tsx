@@ -2,10 +2,10 @@
 
 import type { ReactNode } from 'react';
 import { createContext, useState, useEffect, useCallback } from 'react';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isValid, parseISO } from 'date-fns';
 import type { AppData, DayData, Settings, Task, Expense, Prayer } from '@/lib/types';
 import { db, auth } from '@/lib/firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -46,6 +46,8 @@ export interface DayflowContextType {
   isClient: boolean;
   summary: string;
   setSummary: (summary: string) => void;
+  exportAllData: () => void;
+  importData: (jsonContent: string) => Promise<void>;
 }
 
 export const DayflowContext = createContext<DayflowContextType | undefined>(undefined);
@@ -218,6 +220,41 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     return result;
   };
   
+  const exportAllData = () => {
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(appData, null, 2)
+    )}`;
+    const link = document.createElement("a");
+    link.href = jsonString;
+    link.download = `dayflow-backup-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+  };
+
+  const importData = async (jsonContent: string) => {
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+    const importedData = JSON.parse(jsonContent);
+
+    // Basic validation
+    if (typeof importedData !== 'object' || importedData === null) {
+      throw new Error("Invalid JSON format");
+    }
+    for (const key in importedData) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(key) || !isValid(parseISO(key))) {
+            throw new Error(`Invalid date key found in JSON: ${key}`);
+        }
+    }
+
+    const mergedData = { ...appData, ...importedData };
+    setAppData(mergedData);
+    
+    // Using setDoc to overwrite the entire document with the merged data
+    const docRef = doc(db, "dayflow_data", user.uid);
+    await setDoc(docRef, mergedData);
+  };
+
+
   const weekData = getAggregatedData(startOfWeek(selectedDate, { weekStartsOn: 1 }), endOfWeek(selectedDate, { weekStartsOn: 1 }));
   const monthData = getAggregatedData(startOfMonth(selectedDate), endOfMonth(selectedDate));
   
@@ -244,6 +281,8 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     isClient,
     summary,
     setSummary,
+    exportAllData,
+    importData,
   };
 
   return <DayflowContext.Provider value={value}>{children}</DayflowContext.Provider>;

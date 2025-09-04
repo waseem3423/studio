@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import { Cog } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Cog, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,17 +14,53 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDayflow } from '@/hooks/use-dayflow';
+import { Separator } from '../ui/separator';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SettingsDialog() {
-  const { settings, updateSettings } = useDayflow();
+  const { settings, updateSettings, exportAllData, importData } = useDayflow();
   const [localSettings, setLocalSettings] = useState(settings);
   const [isOpen, setIsOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const handleSave = () => {
     updateSettings(localSettings);
     setIsOpen(false);
+    toast({ title: 'Settings Saved', description: 'Your new settings have been applied.' });
   };
   
+  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string;
+        await importData(content);
+        toast({ title: 'Import Successful', description: 'Your data has been imported.' });
+        setIsOpen(false);
+      } catch (error) {
+        toast({
+          title: 'Import Failed',
+          description: 'The file is not a valid Dayflow backup.',
+          variant: 'destructive',
+        });
+        console.error('Import error:', error);
+      }
+    };
+    reader.readAsText(file);
+     // Reset file input to allow importing the same file again
+    event.target.value = '';
+  };
+
+  const handleExport = () => {
+    exportAllData();
+    toast({ title: 'Export Started', description: 'Your data backup is downloading.' });
+    setIsOpen(false);
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -36,58 +72,73 @@ export default function SettingsDialog() {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>Configure your daily schedule.</DialogDescription>
+          <DialogDescription>Configure your daily schedule and manage data.</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="work-start" className="text-right">
-              Work Start
-            </Label>
-            <Input
-              id="work-start"
-              type="time"
-              value={localSettings.workStartTime}
-              onChange={(e) => setLocalSettings({ ...localSettings, workStartTime: e.target.value })}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="work-end" className="text-right">
-              Work End
-            </Label>
-            <Input
-              id="work-end"
-              type="time"
-              value={localSettings.workEndTime}
-              onChange={(e) => setLocalSettings({ ...localSettings, workEndTime: e.target.value })}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="break-start" className="text-right">
-              Break Start
-            </Label>
-            <Input
-              id="break-start"
-              type="time"
-              value={localSettings.breakStartTime}
-              onChange={(e) => setLocalSettings({ ...localSettings, breakStartTime: e.target.value })}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="break-end" className="text-right">
-              Break End
-            </Label>
-            <Input
-              id="break-end"
-              type="time"
-              value={localSettings.breakEndTime}
-              onChange={(e) => setLocalSettings({ ...localSettings, breakEndTime: e.target.value })}
-              className="col-span-3"
-            />
+        
+        <div className="py-2 space-y-4">
+          <h4 className="text-sm font-medium text-muted-foreground">Daily Schedule</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="work-start">Work Start</Label>
+              <Input
+                id="work-start"
+                type="time"
+                value={localSettings.workStartTime}
+                onChange={(e) => setLocalSettings({ ...localSettings, workStartTime: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="work-end">Work End</Label>
+              <Input
+                id="work-end"
+                type="time"
+                value={localSettings.workEndTime}
+                onChange={(e) => setLocalSettings({ ...localSettings, workEndTime: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="break-start">Break Start</Label>
+              <Input
+                id="break-start"
+                type="time"
+                value={localSettings.breakStartTime}
+                onChange={(e) => setLocalSettings({ ...localSettings, breakStartTime: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="break-end">Break End</Label>
+              <Input
+                id="break-end"
+                type="time"
+                value={localSettings.breakEndTime}
+                onChange={(e) => setLocalSettings({ ...localSettings, breakEndTime: e.target.value })}
+              />
+            </div>
           </div>
         </div>
+
+        <Separator />
+
+        <div className="py-2 space-y-2">
+            <h4 className="text-sm font-medium text-muted-foreground">Data Management</h4>
+            <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="mr-2 h-4 w-4" /> Import Data
+                </Button>
+                <Input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept=".json"
+                    onChange={handleFileImport}
+                />
+                <Button variant="outline" onClick={handleExport}>
+                    <Download className="mr-2 h-4 w-4" /> Export Data
+                </Button>
+            </div>
+        </div>
+
+
         <DialogFooter>
           <Button onClick={handleSave}>Save changes</Button>
         </DialogFooter>

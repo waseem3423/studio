@@ -1,20 +1,15 @@
 'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { DollarSign, Download, Trash2 } from 'lucide-react';
+import { DollarSign, Trash2 } from 'lucide-react';
 import { useDayflow } from '@/hooks/use-dayflow';
 import AddExpenseDialog from './add-expense-dialog';
 import { ScrollArea } from '../ui/scroll-area';
 import { useMemo } from 'react';
 import ExpenseChart from './expense-chart';
-import { Button } from '../ui/button';
-import { exportToCsv } from '@/lib/csv';
-import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
 
 export default function ExpenseTracker() {
-  const { dataForDate, weekData, monthData, deleteExpense, selectedDate } = useDayflow();
+  const { dataForDate, weekData, monthData, deleteExpense } = useDayflow();
   const { expenses } = dataForDate;
-  const { toast } = useToast();
 
   const totals = useMemo(() => {
     const daily = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -23,22 +18,6 @@ export default function ExpenseTracker() {
     return { daily, weekly, monthly };
   }, [expenses, weekData, monthData]);
   
-  const handleExport = () => {
-    const allExpenses = Object.entries(monthData).flatMap(([date, dayData]) => 
-      dayData.expenses.map(expense => ({
-        date,
-        description: expense.description,
-        amount: expense.amount,
-      }))
-    );
-    if(allExpenses.length > 0) {
-      exportToCsv(`expenses-${format(selectedDate, 'yyyy-MM')}.csv`, allExpenses);
-      toast({ title: 'Success', description: 'Expense data exported.' });
-    } else {
-      toast({ title: 'No Data', description: 'There is no expense data for this month to export.', variant: 'destructive' });
-    }
-  }
-
   return (
     <Card className="flex flex-col">
       <CardHeader>
@@ -88,9 +67,8 @@ export default function ExpenseTracker() {
           </div>
         )}
       </CardContent>
-      <CardFooter className="grid grid-cols-2 gap-2">
+      <CardFooter>
         <AddExpenseDialog />
-        <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4"/>Export Month</Button>
       </CardFooter>
     </Card>
   );
