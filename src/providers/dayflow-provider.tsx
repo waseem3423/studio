@@ -77,7 +77,12 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
       if (currentUser) {
         // Load settings from localStorage
         const storedSettings = localStorage.getItem(`${SETTINGS_STORAGE_KEY}-${currentUser.uid}`);
-        setSettings(storedSettings ? JSON.parse(storedSettings) : DEFAULT_SETTINGS);
+        const parsedSettings = storedSettings ? JSON.parse(storedSettings) : DEFAULT_SETTINGS;
+        // Ensure goals object exists
+        if (!parsedSettings.goals) {
+          parsedSettings.goals = DEFAULT_GOALS;
+        }
+        setSettings(parsedSettings);
 
         // Load app data from Firestore
         try {
