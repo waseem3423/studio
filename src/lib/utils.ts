@@ -9,10 +9,10 @@ export function cn(...inputs: ClassValue[]) {
 
 // Approximate prayer end times for locking logic (24-hour format)
 const PRAYER_END_TIMES: Record<PrayerType, string> = {
-  Fajr: '06:00',
-  Dhuhr: '15:30',
-  Asr: '18:00',
-  Maghrib: '20:00',
+  Fajr: '05:45',
+  Dhuhr: '15:41',
+  Asr: '18:29',
+  Maghrib: '19:49',
   Isha: '23:59', // End of day
 };
 
