@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import { DayflowProvider } from '@/providers/dayflow-provider';
 import NextTopLoader from 'nextjs-toploader';
-
+import { ThemeProvider } from '@/providers/theme-provider';
 
 export const metadata: Metadata = {
   title: 'Dayflow Assistant',
@@ -24,11 +24,18 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
       </head>
       <body className={cn('font-body antialiased')}>
-        <NextTopLoader color="hsl(var(--primary))" showSpinner={false} />
-        <DayflowProvider>
-          {children}
-          <Toaster />
-        </DayflowProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <NextTopLoader color="hsl(var(--primary))" showSpinner={false} />
+          <DayflowProvider>
+            {children}
+            <Toaster />
+          </DayflowProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

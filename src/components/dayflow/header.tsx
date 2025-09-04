@@ -8,6 +8,7 @@ import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "./theme-toggle";
 
 export default function Header() {
   const { user } = useDayflow();
@@ -31,6 +32,7 @@ export default function Header() {
       </div>
       <div className="flex items-center gap-2">
         {user && <p className="text-sm text-muted-foreground hidden sm:block">{user.email}</p>}
+        <ThemeToggle />
         <SettingsDialog />
         <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Logout">
           <LogOut className="h-5 w-5" />
