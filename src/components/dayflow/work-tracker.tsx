@@ -1,17 +1,19 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, Play, StopCircle } from 'lucide-react';
+import { Clock, Play, StopCircle, Bot } from 'lucide-react';
 import { useDayflow } from '@/hooks/use-dayflow';
 import { format, parseISO, differenceInMinutes, getDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { getDailySummary } from '@/app/actions';
 
 export default function WorkTracker() {
-  const { dataForDate, settings, startWork, endWork, selectedDate } = useDayflow();
+  const { dataForDate, settings, startWork, endWork, selectedDate, setSummary } = useDayflow();
   const { work } = dataForDate;
   const { toast } = useToast();
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const isWeekend = useMemo(() => {
     const day = getDay(selectedDate);
@@ -46,20 +48,43 @@ export default function WorkTracker() {
     return parseFloat((workMinutes / 60).toFixed(2));
   }, [work.startTime, work.endTime, settings]);
   
-  const handleEndWork = () => {
+  const handleEndWork = async () => {
     endWork();
     const targetHours = 8;
-    if (totalHours >= targetHours) {
+    const workedHours = totalHours; // Calculate before triggering toasts and summary
+
+    if (workedHours >= targetHours) {
         toast({
             title: "Great Job!",
-            description: `You worked ${totalHours} hours today.`,
+            description: `You worked ${workedHours} hours today.`,
         });
     } else {
         toast({
             title: "Work Complete",
-            description: `You worked ${totalHours} hours. Target was ${targetHours} hours.`,
+            description: `You worked ${workedHours} hours. Target was ${targetHours} hours.`,
             variant: "destructive"
         });
+    }
+
+    // Automatically generate summary
+    setIsGenerating(true);
+    setSummary('Generating your daily feedback...');
+    const result = await getDailySummary(dataForDate, settings);
+    setIsGenerating(false);
+
+    if ('feedback' in result) {
+      setSummary(result.feedback);
+      toast({
+        title: "AI Feedback Received",
+        description: "Your personalized daily summary is ready."
+      })
+    } else {
+       setSummary('');
+       toast({
+        title: "Error",
+        description: result.error,
+        variant: "destructive"
+      })
     }
   }
 
@@ -83,8 +108,13 @@ export default function WorkTracker() {
               <Button onClick={startWork} disabled={!!work.startTime}>
                 <Play className="mr-2 h-4 w-4" /> Start Work
               </Button>
-              <Button onClick={handleEndWork} disabled={!work.startTime || !!work.endTime} variant="destructive">
-                <StopCircle className="mr-2 h-4 w-4" /> End Work
+              <Button 
+                onClick={handleEndWork} 
+                disabled={!work.startTime || !!work.endTime || isGenerating} 
+                variant="destructive"
+              >
+                {isGenerating ? <Bot className="mr-2 h-4 w-4 animate-spin" /> : <StopCircle className="mr-2 h-4 w-4" />}
+                {isGenerating ? 'Generating...' : 'End Work'}
               </Button>
             </div>
             <div className="flex justify-between items-center p-3 rounded-md border">
@@ -98,7 +128,7 @@ export default function WorkTracker() {
           </>
         )}
       </CardContent>
-      {!isWeekend && (
+      {!isWeekend && work.endTime && (
         <CardFooter>
           <div className="w-full text-center">
             <p className="font-bold text-lg">{totalHours} hours</p>

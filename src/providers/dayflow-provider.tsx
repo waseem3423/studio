@@ -34,6 +34,8 @@ export interface DayflowContextType {
   dataForDate: DayData;
   weekData: AppData;
   monthData: AppData;
+  summary: string;
+  setSummary: (summary: string) => void;
   startWork: () => void;
   endWork: () => void;
   addTask: (task: Omit<Task, 'id'>) => void;
@@ -54,6 +56,7 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appData, setAppData] = useState<AppData>({});
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [summary, setSummary] = useState('');
   
   // Effect to handle auth state and load data
   useEffect(() => {
@@ -95,6 +98,11 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(`${SETTINGS_STORAGE_KEY}-${user.uid}`, JSON.stringify(settings));
     }
   }, [settings, isClient, user]);
+
+  // Reset summary when date changes
+  useEffect(() => {
+    setSummary('');
+  }, [selectedDate]);
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
 
@@ -202,6 +210,8 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
     dataForDate,
     weekData,
     monthData,
+    summary,
+    setSummary,
     startWork,
     endWork,
     addTask,
