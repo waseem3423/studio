@@ -40,6 +40,7 @@ export interface GoalSettings {
   weeklyWorkHours: number;
   maxDailyExpenses: number;
   prayerStreak: number;
+  dailyTasksCompleted: number;
 }
 
 export interface Settings {

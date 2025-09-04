@@ -153,6 +153,16 @@ export default function SettingsDialog() {
               />
             </div>
             <div className="space-y-1.5">
+              <Label htmlFor="daily-tasks-goal">Daily Tasks Completed Goal</Label>
+              <Input
+                id="daily-tasks-goal"
+                type="number"
+                value={localSettings.goals.dailyTasksCompleted}
+                onChange={(e) => handleGoalChange('dailyTasksCompleted', e.target.value)}
+                placeholder="e.g., 5"
+              />
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="expense-goal">Max Daily Expense (PKR)</Label>
               <Input
                 id="expense-goal"

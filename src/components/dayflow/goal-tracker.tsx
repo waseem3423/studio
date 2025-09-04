@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Target, Clock, DollarSign, Hand } from 'lucide-react';
+import { Target, Clock, DollarSign, Hand, CheckSquare } from 'lucide-react';
 import { useDayflow } from '@/hooks/use-dayflow';
 import { Progress } from '@/components/ui/progress';
 import { differenceInMinutes, parseISO, format, subDays } from 'date-fns';
@@ -73,6 +73,13 @@ export default function GoalTracker() {
     return { current: streak, target: goals.prayerStreak, percentage };
   }, [allData, goals.prayerStreak]);
 
+  const dailyTasksProgress = useMemo(() => {
+    const tasksCompleted = dataForDate.tasks.length;
+    const percentage = goals.dailyTasksCompleted > 0 ? (tasksCompleted / goals.dailyTasksCompleted) * 100 : 0;
+    return { current: tasksCompleted, target: goals.dailyTasksCompleted, percentage };
+  }, [dataForDate.tasks, goals.dailyTasksCompleted]);
+
+
   return (
     <Card>
       <CardHeader>
@@ -92,6 +99,15 @@ export default function GoalTracker() {
             <p className="text-muted-foreground">{weeklyWorkProgress.current} / {weeklyWorkProgress.target} hrs</p>
           </div>
           <Progress value={weeklyWorkProgress.percentage} />
+        </div>
+
+        {/* Daily Tasks */}
+        <div>
+          <div className="flex justify-between items-center mb-1 text-sm">
+            <p className="font-medium flex items-center gap-2"><CheckSquare className="w-4 h-4" /> Daily Tasks</p>
+            <p className="text-muted-foreground">{dailyTasksProgress.current} / {dailyTasksProgress.target} tasks</p>
+          </div>
+          <Progress value={dailyTasksProgress.percentage} />
         </div>
 
         {/* Daily Expenses */}

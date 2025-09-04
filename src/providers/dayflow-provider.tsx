@@ -13,6 +13,7 @@ const DEFAULT_GOALS: GoalSettings = {
   weeklyWorkHours: 40,
   maxDailyExpenses: 1000,
   prayerStreak: 5,
+  dailyTasksCompleted: 5,
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -78,10 +79,8 @@ export function DayflowProvider({ children }: { children: ReactNode }) {
         // Load settings from localStorage
         const storedSettings = localStorage.getItem(`${SETTINGS_STORAGE_KEY}-${currentUser.uid}`);
         const parsedSettings = storedSettings ? JSON.parse(storedSettings) : DEFAULT_SETTINGS;
-        // Ensure goals object exists
-        if (!parsedSettings.goals) {
-          parsedSettings.goals = DEFAULT_GOALS;
-        }
+        // Ensure goals object exists and has all keys
+        parsedSettings.goals = { ...DEFAULT_GOALS, ...parsedSettings.goals };
         setSettings(parsedSettings);
 
         // Load app data from Firestore
