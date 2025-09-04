@@ -1,7 +1,7 @@
 // DO NOT EDIT, this file is generated
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA47JFEpNszBDHOIULsmp5wmBqQFpwxjqY",
@@ -16,5 +16,6 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
 
-export { app, db, auth };
+export { app, db, auth, googleProvider, signInWithPopup };

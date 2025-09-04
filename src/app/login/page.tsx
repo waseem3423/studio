@@ -3,8 +3,9 @@ import { useState } from 'react';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, googleProvider } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +21,16 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Flame } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+
+const GoogleIcon = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24">
+    <path
+      fill="#4285F4"
+      d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.75 8.36,4.73 12.19,4.73C14.04,4.73 15.3,5.5 15.9,6.08L17.9,4.1C16.21,2.56 14.21,2 12.19,2C6.92,2 2.73,6.58 2.73,12C2.73,17.42 6.92,22 12.19,22C17.6,22 21.7,18.2 21.7,12.34C21.7,11.73 21.55,11.33 21.35,11.1Z"
+    />
+  </svg>
+);
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -70,6 +81,79 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      await signInWithPopup(auth, googleProvider);
+      toast({
+        title: 'Logged In',
+        description: 'Welcome!',
+      });
+      router.push('/');
+    } catch (error: any) {
+       toast({
+        title: 'Google Sign-In Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const renderForms = (isLogin: boolean) => (
+    <>
+      <form onSubmit={isLogin ? handleLogin : handleSignUp}>
+        <CardHeader>
+          <CardTitle>{isLogin ? 'Login' : 'Sign Up'}</CardTitle>
+          <CardDescription>
+            {isLogin ? 'Enter your credentials to access your dashboard.' : 'Create an account to start tracking your day.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor={`${isLogin ? 'login' : 'signup'}-email`}>Email</Label>
+            <Input
+              id={`${isLogin ? 'login' : 'signup'}-email`}
+              type="email"
+              placeholder="m@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`${isLogin ? 'login' : 'signup'}-password`}>Password</Label>
+            <Input 
+              id={`${isLogin ? 'login' : 'signup'}-password`}
+              type="password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              />
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-col gap-4">
+          <Button className="w-full" disabled={loading}>
+            {loading ? (isLogin ? 'Logging in...' : 'Creating Account...') : (isLogin ? 'Login' : 'Sign Up')}
+          </Button>
+        </CardFooter>
+      </form>
+
+      <div className="relative my-2 px-6">
+        <Separator />
+        <span className="absolute left-1/2 -translate-x-1/2 -top-2.5 bg-card px-2 text-xs text-muted-foreground">OR</span>
+      </div>
+      
+      <div className="px-6 pb-6">
+         <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
+            <GoogleIcon /> Continue with Google
+          </Button>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/40">
        <div className="absolute top-8 flex items-center gap-2">
@@ -82,80 +166,14 @@ export default function LoginPage() {
           <TabsTrigger value="signup">Sign Up</TabsTrigger>
         </TabsList>
         <TabsContent value="login">
-          <form onSubmit={handleLogin}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Login</CardTitle>
-                <CardDescription>
-                  Enter your credentials to access your dashboard.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="m@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button className="w-full" disabled={loading}>{loading ? 'Logging in...' : 'Login'}</Button>
-              </CardFooter>
-            </Card>
-          </form>
+          <Card>
+            {renderForms(true)}
+          </Card>
         </TabsContent>
         <TabsContent value="signup">
-          <form onSubmit={handleSignUp}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Sign Up</CardTitle>
-                <CardDescription>
-                  Create an account to start tracking your day.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="m@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input 
-                    id="signup-password" 
-                    type="password" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button className="w-full" disabled={loading}>{loading ? 'Creating Account...' : 'Sign Up'}</Button>
-              </CardFooter>
-            </Card>
-          </form>
+          <Card>
+            {renderForms(false)}
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
