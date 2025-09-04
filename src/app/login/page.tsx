@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import {
@@ -22,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Flame } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import Link from 'next/link';
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -155,12 +157,12 @@ export default function LoginPage() {
   );
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-muted/40">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-muted/40 p-4">
        <div className="absolute top-8 flex items-center gap-2">
         <Flame className="w-8 h-8 text-primary" />
         <h1 className="text-3xl font-bold font-headline">Dayflow Assistant</h1>
       </div>
-      <Tabs defaultValue="login" className="w-[400px]">
+      <Tabs defaultValue="login" className="w-full max-w-sm">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="login">Login</TabsTrigger>
           <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -176,6 +178,17 @@ export default function LoginPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      <div className="mt-4 text-center text-sm text-muted-foreground">
+        By continuing, you agree to our{' '}
+        <Link href="/terms-of-service" className="underline hover:text-primary">
+          Terms of Service
+        </Link>{' '}
+        and{' '}
+        <Link href="/privacy-policy" className="underline hover:text-primary">
+          Privacy Policy
+        </Link>
+        .
+      </div>
     </div>
   );
 }
